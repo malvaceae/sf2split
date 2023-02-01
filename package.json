@@ -1,4 +1,7 @@
 {
+  "devDependencies": {
+    "@types/node": "^18.11.18"
+  },
   "license": "UNLICENSED",
   "private": true
 }
