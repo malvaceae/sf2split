@@ -139,25 +139,31 @@ fs.mkdirSync('dist', {
   instIds.sort((a, b) => a - b);
 
   // ibag points
-  const ibagPoints = [
-    instList[Math.min(...instIds) + 0].readUInt16LE(20),
-    instList[Math.max(...instIds) + 1].readUInt16LE(20),
-  ];
+  const ibagPoints = instIds.map((id) => {
+    return [
+      instList[id + 0].readUInt16LE(20),
+      instList[id + 1].readUInt16LE(20),
+    ];
+  });
 
   // imod points
-  const imodPoints = [
-    ibagList[ibagPoints[0]].readUInt16LE(2),
-    ibagList[ibagPoints[1]].readUInt16LE(2),
-  ];
+  const imodPoints = ibagPoints.map((ibagPoints) => {
+    return [
+      ibagList[ibagPoints[0]].readUInt16LE(2),
+      ibagList[ibagPoints[1]].readUInt16LE(2),
+    ];
+  });
 
   // igen points
-  const igenPoints = [
-    ibagList[ibagPoints[0]].readUInt16LE(0),
-    ibagList[ibagPoints[1]].readUInt16LE(0),
-  ];
+  const igenPoints = ibagPoints.map((ibagPoints) => {
+    return [
+      ibagList[ibagPoints[0]].readUInt16LE(0),
+      ibagList[ibagPoints[1]].readUInt16LE(0),
+    ];
+  });
 
   // smpl ids
-  const smplIds = [...new Set(igenList.slice(igenPoints[0], igenPoints[1]).flatMap((igen) => {
+  const smplIds = [...new Set(igenPoints.flatMap((igenPoints) => igenList.slice(igenPoints[0], igenPoints[1])).flatMap((igen) => {
     if (igen.readUInt16LE(0) === 53) {
       return [igen.readUInt16LE(2)];
     } else {
@@ -467,7 +473,7 @@ fs.mkdirSync('dist', {
       (instIds.length * 22 + 22 & 0x00FF0000) >> 0x10,
       (instIds.length * 22 + 22 & 0xFF000000) >> 0x18,
     ]),
-    ...instIds.map((id) => instList[id]).map((inst) => {
+    ...instIds.map((id) => instList[id]).map((inst, i) => {
       return Uint8Array.from([
         inst[0],
         inst[1],
@@ -489,8 +495,8 @@ fs.mkdirSync('dist', {
         inst[17],
         inst[18],
         inst[19],
-        (inst.readUInt16LE(20) - instList[instIds[0]].readUInt16LE(20) & 0x00FF) >> 0x00,
-        (inst.readUInt16LE(20) - instList[instIds[0]].readUInt16LE(20) & 0xFF00) >> 0x08,
+        (ibagPoints.slice(0, i).reduce((sum, ibagPoints) => sum + (ibagPoints[1] - ibagPoints[0]), 0) & 0x00FF) >> 0x00,
+        (ibagPoints.slice(0, i).reduce((sum, ibagPoints) => sum + (ibagPoints[1] - ibagPoints[0]), 0) & 0xFF00) >> 0x08,
       ]);
     }),
     Uint8Array.from([
@@ -514,8 +520,8 @@ fs.mkdirSync('dist', {
       0x00,
       0x00,
       0x00,
-      (ibagPoints[1] - ibagPoints[0] & 0x00FF) >> 0x00,
-      (ibagPoints[1] - ibagPoints[0] & 0xFF00) >> 0x08,
+      (ibagPoints.reduce((sum, ibagPoints) => sum + (ibagPoints[1] - ibagPoints[0]), 0) & 0x00FF) >> 0x00,
+      (ibagPoints.reduce((sum, ibagPoints) => sum + (ibagPoints[1] - ibagPoints[0]), 0) & 0xFF00) >> 0x08,
     ]),
   ]);
 
@@ -526,24 +532,24 @@ fs.mkdirSync('dist', {
       0x62, // b
       0x61, // a
       0x67, // g
-      ((ibagPoints[1] - ibagPoints[0]) * 4 + 4 & 0x000000FF) >> 0x00,
-      ((ibagPoints[1] - ibagPoints[0]) * 4 + 4 & 0x0000FF00) >> 0x08,
-      ((ibagPoints[1] - ibagPoints[0]) * 4 + 4 & 0x00FF0000) >> 0x10,
-      ((ibagPoints[1] - ibagPoints[0]) * 4 + 4 & 0xFF000000) >> 0x18,
+      (ibagPoints.reduce((sum, ibagPoints) => sum + (ibagPoints[1] - ibagPoints[0]), 0) * 4 + 4 & 0x000000FF) >> 0x00,
+      (ibagPoints.reduce((sum, ibagPoints) => sum + (ibagPoints[1] - ibagPoints[0]), 0) * 4 + 4 & 0x0000FF00) >> 0x08,
+      (ibagPoints.reduce((sum, ibagPoints) => sum + (ibagPoints[1] - ibagPoints[0]), 0) * 4 + 4 & 0x00FF0000) >> 0x10,
+      (ibagPoints.reduce((sum, ibagPoints) => sum + (ibagPoints[1] - ibagPoints[0]), 0) * 4 + 4 & 0xFF000000) >> 0x18,
     ]),
-    ...ibagList.slice(ibagPoints[0], ibagPoints[1]).map((ibag) => {
+    ...ibagPoints.flatMap((ibagPoints, i) => ibagList.slice(ibagPoints[0], ibagPoints[1]).map((ibag) => {
       return Uint8Array.from([
-        (ibag.readUInt16LE(0) - ibagList[ibagPoints[0]].readUInt16LE(0) & 0x00FF) >> 0x00,
-        (ibag.readUInt16LE(0) - ibagList[ibagPoints[0]].readUInt16LE(0) & 0xFF00) >> 0x08,
-        (ibag.readUInt16LE(2) - ibagList[ibagPoints[0]].readUInt16LE(2) & 0x00FF) >> 0x00,
-        (ibag.readUInt16LE(2) - ibagList[ibagPoints[0]].readUInt16LE(2) & 0xFF00) >> 0x08,
+        (igenPoints.slice(0, i).reduce((sum, igenPoints) => sum + (igenPoints[1] - igenPoints[0]), 0) + (ibag.readUInt16LE(0) - ibagList[ibagPoints[0]].readUInt16LE(0)) & 0x00FF) >> 0x00,
+        (igenPoints.slice(0, i).reduce((sum, igenPoints) => sum + (igenPoints[1] - igenPoints[0]), 0) + (ibag.readUInt16LE(0) - ibagList[ibagPoints[0]].readUInt16LE(0)) & 0xFF00) >> 0x08,
+        (imodPoints.slice(0, i).reduce((sum, imodPoints) => sum + (imodPoints[1] - imodPoints[0]), 0) + (ibag.readUInt16LE(2) - ibagList[ibagPoints[0]].readUInt16LE(2)) & 0x00FF) >> 0x00,
+        (imodPoints.slice(0, i).reduce((sum, imodPoints) => sum + (imodPoints[1] - imodPoints[0]), 0) + (ibag.readUInt16LE(2) - ibagList[ibagPoints[0]].readUInt16LE(2)) & 0xFF00) >> 0x08,
       ]);
-    }),
+    })),
     Uint8Array.from([
-      (igenPoints[1] - igenPoints[0] & 0x00FF) >> 0x00,
-      (igenPoints[1] - igenPoints[0] & 0xFF00) >> 0x08,
-      (imodPoints[1] - imodPoints[0] & 0x00FF) >> 0x00,
-      (imodPoints[1] - imodPoints[0] & 0xFF00) >> 0x08,
+      (igenPoints.reduce((sum, igenPoints) => sum + (igenPoints[1] - igenPoints[0]), 0) & 0x00FF) >> 0x00,
+      (igenPoints.reduce((sum, igenPoints) => sum + (igenPoints[1] - igenPoints[0]), 0) & 0xFF00) >> 0x08,
+      (imodPoints.reduce((sum, imodPoints) => sum + (imodPoints[1] - imodPoints[0]), 0) & 0x00FF) >> 0x00,
+      (imodPoints.reduce((sum, imodPoints) => sum + (imodPoints[1] - imodPoints[0]), 0) & 0xFF00) >> 0x08,
     ]),
   ]);
 
@@ -554,12 +560,12 @@ fs.mkdirSync('dist', {
       0x6D, // m
       0x6F, // o
       0x64, // d
-      ((imodPoints[1] - imodPoints[0]) * 10 + 10 & 0x000000FF) >> 0x00,
-      ((imodPoints[1] - imodPoints[0]) * 10 + 10 & 0x0000FF00) >> 0x08,
-      ((imodPoints[1] - imodPoints[0]) * 10 + 10 & 0x00FF0000) >> 0x10,
-      ((imodPoints[1] - imodPoints[0]) * 10 + 10 & 0xFF000000) >> 0x18,
+      (imodPoints.reduce((sum, imodPoints) => sum + (imodPoints[1] - imodPoints[0]), 0) * 10 + 10 & 0x000000FF) >> 0x00,
+      (imodPoints.reduce((sum, imodPoints) => sum + (imodPoints[1] - imodPoints[0]), 0) * 10 + 10 & 0x0000FF00) >> 0x08,
+      (imodPoints.reduce((sum, imodPoints) => sum + (imodPoints[1] - imodPoints[0]), 0) * 10 + 10 & 0x00FF0000) >> 0x10,
+      (imodPoints.reduce((sum, imodPoints) => sum + (imodPoints[1] - imodPoints[0]), 0) * 10 + 10 & 0xFF000000) >> 0x18,
     ]),
-    ...imodList.slice(imodPoints[0], imodPoints[1]),
+    ...imodPoints.flatMap((imodPoints) => imodList.slice(imodPoints[0], imodPoints[1])),
     Uint8Array.from([
       0x00,
       0x00,
@@ -581,12 +587,12 @@ fs.mkdirSync('dist', {
       0x67, // g
       0x65, // e
       0x6E, // n
-      ((igenPoints[1] - igenPoints[0]) * 4 + 4 & 0x000000FF) >> 0x00,
-      ((igenPoints[1] - igenPoints[0]) * 4 + 4 & 0x0000FF00) >> 0x08,
-      ((igenPoints[1] - igenPoints[0]) * 4 + 4 & 0x00FF0000) >> 0x10,
-      ((igenPoints[1] - igenPoints[0]) * 4 + 4 & 0xFF000000) >> 0x18,
+      (igenPoints.reduce((sum, igenPoints) => sum + (igenPoints[1] - igenPoints[0]), 0) * 4 + 4 & 0x000000FF) >> 0x00,
+      (igenPoints.reduce((sum, igenPoints) => sum + (igenPoints[1] - igenPoints[0]), 0) * 4 + 4 & 0x0000FF00) >> 0x08,
+      (igenPoints.reduce((sum, igenPoints) => sum + (igenPoints[1] - igenPoints[0]), 0) * 4 + 4 & 0x00FF0000) >> 0x10,
+      (igenPoints.reduce((sum, igenPoints) => sum + (igenPoints[1] - igenPoints[0]), 0) * 4 + 4 & 0xFF000000) >> 0x18,
     ]),
-    ...igenList.slice(igenPoints[0], igenPoints[1]).map((igen) => {
+    ...igenPoints.flatMap((igenPoints) => igenList.slice(igenPoints[0], igenPoints[1]).map((igen) => {
       if (igen.readUInt16LE(0) === 53) {
         return Uint8Array.from([
           igen[0],
@@ -597,7 +603,7 @@ fs.mkdirSync('dist', {
       } else {
         return igen;
       }
-    }),
+    })),
     Uint8Array.from([
       0x00,
       0x00,
